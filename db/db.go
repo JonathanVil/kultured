@@ -45,6 +45,8 @@ func migrate(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	db.Exec(`ALTER TABLE batches ADD COLUMN tea_g REAL NOT NULL DEFAULT 0`)
+	db.Exec(`ALTER TABLE batches ADD COLUMN steep_min REAL NOT NULL DEFAULT 0`)
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS readings (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,

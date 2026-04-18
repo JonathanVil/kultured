@@ -2,7 +2,7 @@
 <section>
     <hgroup>
         <h2>{{.Batch.Name}}</h2>
-        <p>{{.Batch.TeaType}} · {{.Batch.VolumeL}}L · {{.Batch.SugarG}}g sugar · SCOBY {{.Batch.ScobyWeightG}}g · Started {{.Batch.StartedAt}}</p>
+        <p>{{.Batch.TeaType}} · {{.Batch.TeaG}}g tea · {{.Batch.SteepMin}}min steep · {{.Batch.VolumeL}}L · {{.Batch.SugarG}}g sugar · SCOBY {{.Batch.ScobyWeightG}}g · Started {{.Batch.StartedAt}}</p>
     </hgroup>
     {{if .Batch.Notes.Valid}}<p><em>{{.Batch.Notes.String}}</em></p>{{end}}
 
