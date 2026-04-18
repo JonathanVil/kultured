@@ -43,3 +43,16 @@ func GetAllBatches(db *sql.DB) ([]Batch, error) {
     }
     return batches, rows.Err()
 }
+
+func CreateBatch(db *sql.DB, b Batch) (int64, error) {
+	result, err := db.Exec(`
+		INSERT INTO batches
+		(name, started_at, tea_type, sugar_g, volume_l, scoby_weight_g, stage, notes)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, b.Name, b.StartedAt, b.TeaType, b.SugarG, b.VolumeL, b.ScobyWeightG, b.Stage, b.Notes)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.LastInsertId()
+}

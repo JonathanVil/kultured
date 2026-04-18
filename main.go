@@ -20,6 +20,8 @@ func main() {
 
     r := chi.NewRouter()
     r.Get("/", batchHandler.Index)
+    r.Get("/batches/new", batchHandler.New)
+    r.Post("/batches", batchHandler.Create)
 
     log.Println("kultured running on http://localhost:8085")
     log.Fatal(http.ListenAndServe(":8085", r))
