@@ -1,0 +1,7 @@
+{{define "stats"}}
+<div id="stats">
+    <p><strong>Fermentation days:</strong> {{.FermentationDays}}</p>
+    {{if .HasABV}}<p><strong>Estimated ABV:</strong> {{printf "%.1f" .ABV}}%</p>{{end}}
+    {{if .HasSugars}}<p><strong>Sugars remaining:</strong> {{printf "%.0f" .SugarsRemaining}}g</p>{{end}}
+</div>
+{{end}}

@@ -1,0 +1,17 @@
+{{define "reading_row"}}
+<tr id="reading-{{.ID}}">
+    <td>{{.RecordedAt}}</td>
+    <td>{{if .Gravity.Valid}}{{printf "%.3f" .Gravity.Float64}}{{else}}—{{end}}</td>
+    <td>{{if .TempC.Valid}}{{printf "%.1f" .TempC.Float64}}°C{{else}}—{{end}}</td>
+    <td>{{if .TasteNotes.Valid}}{{.TasteNotes.String}}{{else}}—{{end}}</td>
+    <td>
+        <button hx-delete="/readings/{{.ID}}"
+                hx-target="closest tr"
+                hx-swap="outerHTML"
+                hx-confirm="Delete this reading?"
+                class="secondary outline">
+            Delete
+        </button>
+    </td>
+</tr>
+{{end}}
