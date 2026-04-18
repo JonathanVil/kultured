@@ -116,11 +116,25 @@ func (h *BatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	teaG, err := strconv.ParseFloat(r.FormValue("tea_g"), 64)
+	if err != nil {
+		http.Error(w, "invalid tea amount value", http.StatusBadRequest)
+		return
+	}
+
+	steepMin, err := strconv.ParseFloat(r.FormValue("steep_min"), 64)
+	if err != nil {
+		http.Error(w, "invalid steep time value", http.StatusBadRequest)
+		return
+	}
+
 	notes := r.FormValue("notes")
 	batch := models.Batch{
 		Name:         r.FormValue("name"),
 		StartedAt:    r.FormValue("started_at"),
 		TeaType:      r.FormValue("tea_type"),
+		TeaG:         teaG,
+		SteepMin:     steepMin,
 		SugarG:       sugarG,
 		VolumeL:      volumeL,
 		ScobyWeightG: scobyWeightG,

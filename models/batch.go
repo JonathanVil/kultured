@@ -9,6 +9,8 @@ type Batch struct {
     Name          string
     StartedAt     string
     TeaType       string
+    TeaG          float64
+    SteepMin      float64
     SugarG        float64
     VolumeL       float64
     ScobyWeightG  float64
@@ -19,7 +21,7 @@ type Batch struct {
 
 func GetAllBatches(db *sql.DB) ([]Batch, error) {
     rows, err := db.Query(`
-        SELECT id, name, started_at, tea_type, sugar_g, volume_l, scoby_weight_g, stage, notes, created_at
+        SELECT id, name, started_at, tea_type, tea_g, steep_min, sugar_g, volume_l, scoby_weight_g, stage, notes, created_at
         FROM batches
         ORDER BY started_at DESC
     `)
@@ -32,7 +34,7 @@ func GetAllBatches(db *sql.DB) ([]Batch, error) {
     for rows.Next() {
         var b Batch
         err := rows.Scan(
-            &b.ID, &b.Name, &b.StartedAt, &b.TeaType,
+            &b.ID, &b.Name, &b.StartedAt, &b.TeaType, &b.TeaG, &b.SteepMin,
             &b.SugarG, &b.VolumeL, &b.ScobyWeightG,
             &b.Stage, &b.Notes, &b.CreatedAt,
         )
@@ -47,9 +49,9 @@ func GetAllBatches(db *sql.DB) ([]Batch, error) {
 func CreateBatch(db *sql.DB, b Batch) (int64, error) {
 	result, err := db.Exec(`
 		INSERT INTO batches
-		(name, started_at, tea_type, sugar_g, volume_l, scoby_weight_g, stage, notes)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		`, b.Name, b.StartedAt, b.TeaType, b.SugarG, b.VolumeL, b.ScobyWeightG, b.Stage, b.Notes)
+		(name, started_at, tea_type, tea_g, steep_min, sugar_g, volume_l, scoby_weight_g, stage, notes)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, b.Name, b.StartedAt, b.TeaType, b.TeaG, b.SteepMin, b.SugarG, b.VolumeL, b.ScobyWeightG, b.Stage, b.Notes)
 	if err != nil {
 		return 0, err
 	}
@@ -60,9 +62,9 @@ func CreateBatch(db *sql.DB, b Batch) (int64, error) {
 func GetBatch(db *sql.DB, id int) (Batch, error) {
 	var b Batch
 	err := db.QueryRow(`
-		SELECT id, name, started_at, tea_type, sugar_g, volume_l, scoby_weight_g, stage, notes, created_at
+		SELECT id, name, started_at, tea_type, tea_g, steep_min, sugar_g, volume_l, scoby_weight_g, stage, notes, created_at
 		FROM batches WHERE id = ?
-	`, id).Scan(&b.ID, &b.Name, &b.StartedAt, &b.TeaType, &b.SugarG, &b.VolumeL, &b.ScobyWeightG, &b.Stage, &b.Notes, &b.CreatedAt)
+	`, id).Scan(&b.ID, &b.Name, &b.StartedAt, &b.TeaType, &b.TeaG, &b.SteepMin, &b.SugarG, &b.VolumeL, &b.ScobyWeightG, &b.Stage, &b.Notes, &b.CreatedAt)
 	return b, err
 }
 
