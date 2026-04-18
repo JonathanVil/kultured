@@ -1,0 +1,29 @@
+{{define "content"}}
+<section>
+    <h2>Active batches</h2>
+    {{if .}}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Tea type</th>
+                    <th>Stage</th>
+                    <th>Started</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .}}
+                <tr>
+                    <td>{{.Name}}</td>
+                    <td>{{.TeaType}}</td>
+                    <td>{{.Stage}}</td>
+                    <td>{{.StartedAt}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    {{else}}
+        <p>No batches yet. Time to brew something.</p>
+    {{end}}
+</section>
+{{end}}
