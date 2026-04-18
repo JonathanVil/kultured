@@ -4,7 +4,7 @@
         <a href="/batches/{{.ID}}"><strong>{{.Name}}</strong></a>
         <small>{{.Stage}}</small>
     </header>
-    <p>{{.TeaType}} · {{.VolumeL}}L · Started {{.StartedAt}} · {{.DaysElapsed}} days elapsed</p>
+    <p>{{.TeaType}} · {{.VolumeL}}L · Started {{.StartedAt}} · Day {{.DayIndex}}</p>
     {{if .HasGravity}}<p>Latest gravity: {{printf "%.3f" .LatestGravity}}</p>{{end}}
     <footer>
         <button hx-delete="/batches/{{.ID}}"

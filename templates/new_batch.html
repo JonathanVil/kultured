@@ -43,6 +43,23 @@
             SCOBY weight (grams)
             <input type="number" name="scoby_weight_g" step="1" min="0" placeholder="e.g. 150" required>
         </label>
+        <article id="live-calcs" aria-live="polite" style="display:none">
+            <div class="grid" style="text-align:center">
+                <div>
+                    <small>SCOBY</small><br>
+                    <strong id="calc-scoby-pct">—</strong>
+                </div>
+                <div>
+                    <small>Sugar</small><br>
+                    <strong id="calc-brix">—</strong>
+                </div>
+                <div>
+                    <small>Tea</small><br>
+                    <strong id="calc-tea-per-l">—</strong>
+                </div>
+            </div>
+        </article>
+
         <label>
             Notes
             <textarea name="notes" placeholder="Anything worth remembering about this batch..."></textarea>
@@ -51,4 +68,36 @@
         <a href="/" role="button" class="secondary">Cancel</a>
     </form>
 </section>
+<script>
+(function () {
+    const fields = ['volume_l', 'sugar_g', 'scoby_weight_g', 'tea_g'];
+    const card = document.getElementById('live-calcs');
+
+    function val(name) {
+        return parseFloat(document.querySelector('[name=' + name + ']').value) || 0;
+    }
+
+    function update() {
+        const volumeL = val('volume_l');
+        const sugarG  = val('sugar_g');
+        const scobyG  = val('scoby_weight_g');
+        const teaG    = val('tea_g');
+
+        const totalG = volumeL * 1000 + scobyG;
+
+        document.getElementById('calc-scoby-pct').textContent =
+            totalG > 0 ? (scobyG / totalG * 100).toFixed(1) + '%' : '—';
+        document.getElementById('calc-brix').textContent =
+            totalG > 0 ? (sugarG / totalG * 100).toFixed(1) + '°Bx' : '—';
+        document.getElementById('calc-tea-per-l').textContent =
+            volumeL > 0 ? (teaG / volumeL).toFixed(1) + ' g/L' : '—';
+
+        card.style.display = (volumeL > 0 || sugarG > 0 || scobyG > 0 || teaG > 0) ? '' : 'none';
+    }
+
+    fields.forEach(function (name) {
+        document.querySelector('[name=' + name + ']').addEventListener('input', update);
+    });
+}());
+</script>
 {{end}}
