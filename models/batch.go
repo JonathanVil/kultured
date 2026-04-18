@@ -56,3 +56,8 @@ func CreateBatch(db *sql.DB, b Batch) (int64, error) {
 
 	return result.LastInsertId()
 }
+
+func DeleteBatch(db *sql.DB, id int) error {
+	_, err := db.Exec(`DELETE FROM batches WHERE id = ?`, id)
+	return err
+}

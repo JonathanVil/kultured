@@ -18,6 +18,15 @@
                     <td>{{.TeaType}}</td>
                     <td>{{.Stage}}</td>
                     <td>{{.StartedAt}}</td>
+                    <td>
+                        <button hx-delete="/batches/{{.ID}}"
+                                hx-target="closest tr"
+                                hx-swap="outerHTML"
+                                hx-confirm="Delete this batch?"
+                                class="secondary">
+                            Delete
+                        </button>
+                    </td>
                 </tr>
                 {{end}}
             </tbody>
