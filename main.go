@@ -22,6 +22,7 @@ func main() {
     r.Get("/", batchHandler.Index)
     r.Get("/batches/new", batchHandler.New)
     r.Post("/batches", batchHandler.Create)
+    r.Delete("/batches/{id}", batchHandler.Delete)
 
     log.Println("kultured running on http://localhost:8085")
     log.Fatal(http.ListenAndServe(":8085", r))

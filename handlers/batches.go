@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"database/sql"
-	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
 
 	"github.com/JonathanVil/kultured/models"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type BatchHandler struct {
@@ -79,11 +80,33 @@ func (h *BatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Notes:        sql.NullString{String: notes, Valid: notes != ""},
 	}
 
-	id, err := models.CreateBatch(h.DB, batch)
-	if err != nil {
+	if _, err := models.CreateBatch(h.DB, batch); err != nil {
 		http.Error(w, "failed to create batch", http.StatusInternalServerError)
 		return
 	}
 
-	http.Redirect(w, r, "/"), http.StatusSeeOther)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (h *BatchHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid batch id", http.StatusBadRequest)
+		return
+	}
+
+	if err := models.DeleteBatch(h.DB, id); err != nil {
+		http.Error(w, "failed to delete batch", http.StatusInternalServerError)
+		return
+	}
+
+	if isHTMX(r) {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func isHTMX(r *http.Request) bool {
+    return r.Header.Get("HX-Request") == "true"
 }
