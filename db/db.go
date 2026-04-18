@@ -28,7 +28,7 @@ func Open(path string) (*sql.DB, error) {
 }
 
 func migrate(db *sql.DB) error {
-    _, err := db.Exec(`
+	_, err := db.Exec(`
         CREATE TABLE IF NOT EXISTS batches (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             name            TEXT NOT NULL,
@@ -42,5 +42,18 @@ func migrate(db *sql.DB) error {
             created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
         )
     `)
-    return err
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`
+        CREATE TABLE IF NOT EXISTS readings (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            batch_id    INTEGER NOT NULL REFERENCES batches(id) ON DELETE CASCADE,
+            recorded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            gravity     REAL,
+            temp_c      REAL,
+            taste_notes TEXT
+        )
+    `)
+	return err
 }
