@@ -21,9 +21,8 @@ type Batch struct {
 	CreatedAt     string
 }
 
-const batchColumns = `
-	id, name, started_at, tea_type, tea_g, steep_min, sugar_g,
-	tea_volume_l, scoby_volume_ml, stage, start_f2, done_at, created_at`
+const batchColumns = ` id, name, started_at, tea_type, tea_g, steep_min, sugar_g,
+	tea_volume_l, scoby_volume_ml, stage, start_f2, done_at, created_at `
 
 func scanBatch(s interface{ Scan(...any) error }) (Batch, error) {
 	var b Batch

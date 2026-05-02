@@ -32,6 +32,14 @@ func GetNotesForBatch(db *sql.DB, batchID int) ([]Note, error) {
 	return notes, rows.Err()
 }
 
+func GetNote(db *sql.DB, id int) (Note, error) {
+	var n Note
+	err := db.QueryRow(
+		`SELECT id, batch_id, note, created_at FROM batch_notes WHERE id = ?`, id,
+	).Scan(&n.ID, &n.BatchID, &n.Note, &n.CreatedAt)
+	return n, err
+}
+
 func CreateNote(db *sql.DB, n Note) (int64, error) {
 	result, err := db.Exec(
 		`INSERT INTO batch_notes (batch_id, note) VALUES (?, ?)`,

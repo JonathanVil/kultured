@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"database/sql"
-	"html/template"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -15,131 +15,122 @@ type BatchHandler struct {
 	DB *sql.DB
 }
 
-type BatchSummary struct {
-	models.Batch
-	DaysElapsed int
+type batchResponse struct {
+	ID            int      `json:"id"`
+	Name          string   `json:"name"`
+	TeaType       string   `json:"tea_type"`
+	TeaG          float64  `json:"tea_g"`
+	SteepMin      float64  `json:"steep_min"`
+	SugarG        float64  `json:"sugar_g"`
+	TeaVolumeL    float64  `json:"tea_volume_l"`
+	ScobyVolumeMl float64  `json:"scoby_volume_ml"`
+	TotalVolumeL  float64  `json:"total_volume_l"`
+	Stage         string   `json:"stage"`
+	StartedAt     string   `json:"started_at"`
+	StartF2       *string  `json:"start_f2"`
+	DoneAt        *string  `json:"done_at"`
+	CreatedAt     string   `json:"created_at"`
+	F1Days        int      `json:"f1_days"`
+	F2Days        int      `json:"f2_days"`
+	BackslopPct   float64  `json:"backslop_pct"`
+	SugarPct      float64  `json:"sugar_pct"`
+	TeaGPerL      float64  `json:"tea_g_per_l"`
 }
 
-type BatchDetailData struct {
-	Batch     models.Batch
-	Notes     []models.Note
-	Stats     BatchStats
-	NextStage string
+type batchDetailResponse struct {
+	batchResponse
+	Notes []noteResponse `json:"notes"`
 }
 
-type BatchStats struct {
-	FermentationDays int
+type noteResponse struct {
+	ID        int    `json:"id"`
+	Note      string `json:"note"`
+	CreatedAt string `json:"created_at"`
 }
 
-func nextStage(current string) string {
-	switch current {
-	case "f1":
-		return "f2"
-	case "f2":
-		return "bottled"
-	case "bottled":
-		return "done"
-	default:
-		return ""
+func toBatchResponse(b models.Batch) batchResponse {
+	totalVolumeMl := b.TeaVolumeL*1000 + b.ScobyVolumeMl
+
+	var startF2, doneAt *string
+	if b.StartF2.Valid {
+		s := b.StartF2.String
+		startF2 = &s
+	}
+	if b.DoneAt.Valid {
+		s := b.DoneAt.String
+		doneAt = &s
+	}
+
+	f1Days := 0
+	if b.StartF2.Valid {
+		f1Days, _ = calc.DaysBetween(b.StartedAt, b.StartF2.String)
+	} else {
+		f1Days, _ = calc.FermentationDays(b.StartedAt)
+	}
+
+	f2Days := 0
+	if b.StartF2.Valid {
+		if b.DoneAt.Valid {
+			f2Days, _ = calc.DaysBetween(b.StartF2.String, b.DoneAt.String)
+		} else {
+			f2Days, _ = calc.DaysSince(b.StartF2.String)
+		}
+	}
+
+	var backslopPct, sugarPct float64
+	if totalVolumeMl > 0 {
+		backslopPct = b.ScobyVolumeMl / totalVolumeMl * 100
+		sugarPct = b.SugarG / totalVolumeMl * 100
+	}
+
+	var teaGPerL float64
+	if b.TeaVolumeL > 0 {
+		teaGPerL = b.TeaG / b.TeaVolumeL
+	}
+
+	return batchResponse{
+		ID:            b.ID,
+		Name:          b.Name,
+		TeaType:       b.TeaType,
+		TeaG:          b.TeaG,
+		SteepMin:      b.SteepMin,
+		SugarG:        b.SugarG,
+		TeaVolumeL:    b.TeaVolumeL,
+		ScobyVolumeMl: b.ScobyVolumeMl,
+		TotalVolumeL:  totalVolumeMl / 1000,
+		Stage:         b.Stage,
+		StartedAt:     b.StartedAt,
+		StartF2:       startF2,
+		DoneAt:        doneAt,
+		CreatedAt:     b.CreatedAt,
+		F1Days:        f1Days,
+		F2Days:        f2Days,
+		BackslopPct:   backslopPct,
+		SugarPct:      sugarPct,
+		TeaGPerL:      teaGPerL,
 	}
 }
 
-func (h *BatchHandler) Index(w http.ResponseWriter, r *http.Request) {
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(v)
+}
+
+func (h *BatchHandler) List(w http.ResponseWriter, r *http.Request) {
 	batches, err := models.GetAllBatches(h.DB)
 	if err != nil {
 		http.Error(w, "failed to fetch batches", http.StatusInternalServerError)
 		return
 	}
-
-	summaries := make([]BatchSummary, 0, len(batches))
-	for _, b := range batches {
-		days, _ := calc.FermentationDays(b.StartedAt)
-		summaries = append(summaries, BatchSummary{Batch: b, DaysElapsed: days})
+	resp := make([]batchResponse, len(batches))
+	for i, b := range batches {
+		resp[i] = toBatchResponse(b)
 	}
-
-	tmpl, err := template.ParseFiles(
-		"templates/layout.html",
-		"templates/index.html",
-		"templates/partials/batch_card.html",
-	)
-	if err != nil {
-		http.Error(w, "failed to parse templates", http.StatusInternalServerError)
-		return
-	}
-
-	tmpl.ExecuteTemplate(w, "layout", summaries)
+	writeJSON(w, http.StatusOK, resp)
 }
 
-func (h *BatchHandler) New(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles(
-		"templates/layout.html",
-		"templates/new_batch.html",
-	)
-	if err != nil {
-		http.Error(w, "failed to parse templates", http.StatusInternalServerError)
-		return
-	}
-
-	tmpl.ExecuteTemplate(w, "layout", nil)
-}
-
-func (h *BatchHandler) Create(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "failed to parse form", http.StatusBadRequest)
-		return
-	}
-
-	sugarG, err := strconv.ParseFloat(r.FormValue("sugar_g"), 64)
-	if err != nil {
-		http.Error(w, "invalid sugar value", http.StatusBadRequest)
-		return
-	}
-
-	teaVolumeL, err := strconv.ParseFloat(r.FormValue("tea_volume_l"), 64)
-	if err != nil {
-		http.Error(w, "invalid tea volume value", http.StatusBadRequest)
-		return
-	}
-
-	scobyVolumeMl, err := strconv.ParseFloat(r.FormValue("scoby_volume_ml"), 64)
-	if err != nil {
-		http.Error(w, "invalid SCOBY volume value", http.StatusBadRequest)
-		return
-	}
-
-	teaG, err := strconv.ParseFloat(r.FormValue("tea_g"), 64)
-	if err != nil {
-		http.Error(w, "invalid tea amount value", http.StatusBadRequest)
-		return
-	}
-
-	steepMin, err := strconv.ParseFloat(r.FormValue("steep_min"), 64)
-	if err != nil {
-		http.Error(w, "invalid steep time value", http.StatusBadRequest)
-		return
-	}
-
-	batch := models.Batch{
-		Name:          r.FormValue("name"),
-		StartedAt:     r.FormValue("started_at"),
-		TeaType:       r.FormValue("tea_type"),
-		TeaG:          teaG,
-		SteepMin:      steepMin,
-		SugarG:        sugarG,
-		TeaVolumeL:    teaVolumeL,
-		ScobyVolumeMl: scobyVolumeMl,
-		Stage:         "f1",
-	}
-
-	if _, err := models.CreateBatch(h.DB, batch); err != nil {
-		http.Error(w, "failed to create batch", http.StatusInternalServerError)
-		return
-	}
-
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-func (h *BatchHandler) Show(w http.ResponseWriter, r *http.Request) {
+func (h *BatchHandler) Get(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
 		http.Error(w, "invalid batch id", http.StatusBadRequest)
@@ -158,26 +149,60 @@ func (h *BatchHandler) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	days, _ := calc.FermentationDays(batch.StartedAt)
-
-	data := BatchDetailData{
-		Batch:     batch,
-		Notes:     notes,
-		Stats:     BatchStats{FermentationDays: days},
-		NextStage: nextStage(batch.Stage),
+	noteResps := make([]noteResponse, len(notes))
+	for i, n := range notes {
+		noteResps[i] = noteResponse{ID: n.ID, Note: n.Note, CreatedAt: n.CreatedAt}
 	}
 
-	tmpl, err := template.ParseFiles(
-		"templates/layout.html",
-		"templates/batch.html",
-		"templates/partials/stats.html",
-	)
-	if err != nil {
-		http.Error(w, "failed to parse templates", http.StatusInternalServerError)
+	writeJSON(w, http.StatusOK, batchDetailResponse{
+		batchResponse: toBatchResponse(batch),
+		Notes:         noteResps,
+	})
+}
+
+func (h *BatchHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name          string  `json:"name"`
+		TeaType       string  `json:"tea_type"`
+		TeaG          float64 `json:"tea_g"`
+		SteepMin      float64 `json:"steep_min"`
+		SugarG        float64 `json:"sugar_g"`
+		TeaVolumeL    float64 `json:"tea_volume_l"`
+		ScobyVolumeMl float64 `json:"scoby_volume_ml"`
+		StartedAt     string  `json:"started_at"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.Name == "" || req.TeaType == "" || req.StartedAt == "" {
+		http.Error(w, "name, tea_type, and started_at are required", http.StatusBadRequest)
 		return
 	}
 
-	tmpl.ExecuteTemplate(w, "layout", data)
+	batch := models.Batch{
+		Name:          req.Name,
+		StartedAt:     req.StartedAt,
+		TeaType:       req.TeaType,
+		TeaG:          req.TeaG,
+		SteepMin:      req.SteepMin,
+		SugarG:        req.SugarG,
+		TeaVolumeL:    req.TeaVolumeL,
+		ScobyVolumeMl: req.ScobyVolumeMl,
+		Stage:         "f1",
+	}
+	id, err := models.CreateBatch(h.DB, batch)
+	if err != nil {
+		http.Error(w, "failed to create batch", http.StatusInternalServerError)
+		return
+	}
+
+	created, err := models.GetBatch(h.DB, int(id))
+	if err != nil {
+		http.Error(w, "failed to retrieve created batch", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusCreated, toBatchResponse(created))
 }
 
 func (h *BatchHandler) UpdateStage(w http.ResponseWriter, r *http.Request) {
@@ -187,30 +212,31 @@ func (h *BatchHandler) UpdateStage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "failed to parse form", http.StatusBadRequest)
+	var req struct {
+		Stage string `json:"stage"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	stage := r.FormValue("stage")
 	validStages := map[string]bool{"f1": true, "f2": true, "bottled": true, "done": true}
-	if !validStages[stage] {
+	if !validStages[req.Stage] {
 		http.Error(w, "invalid stage", http.StatusBadRequest)
 		return
 	}
 
-	if err := models.UpdateStage(h.DB, id, stage); err != nil {
+	if err := models.UpdateStage(h.DB, id, req.Stage); err != nil {
 		http.Error(w, "failed to update stage", http.StatusInternalServerError)
 		return
 	}
 
-	idStr := strconv.Itoa(id)
-	if isHTMX(r) {
-		w.Header().Set("HX-Redirect", "/batches/"+idStr)
-		w.WriteHeader(http.StatusOK)
+	updated, err := models.GetBatch(h.DB, id)
+	if err != nil {
+		http.Error(w, "failed to retrieve updated batch", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/batches/"+idStr, http.StatusSeeOther)
+	writeJSON(w, http.StatusOK, toBatchResponse(updated))
 }
 
 func (h *BatchHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -225,9 +251,5 @@ func (h *BatchHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if isHTMX(r) {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	w.WriteHeader(http.StatusNoContent)
 }
