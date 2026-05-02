@@ -1,8 +1,8 @@
 <script>
   import { push } from 'svelte-spa-router'
   import { Button } from '$lib/components/ui/button'
-  import { Badge } from '$lib/components/ui/badge'
   import * as Table from '$lib/components/ui/table'
+  import { fmtDate } from '$lib/utils.js'
 
   let batches = $state([])
   let loading = $state(true)
@@ -18,12 +18,12 @@
       .catch(e => { error = e.message; loading = false })
   })
 
-  const stageVariant = (stage) => ({
-    f1: 'secondary',
-    f2: 'secondary',
-    bottled: 'outline',
-    done: 'default',
-  }[stage] ?? 'secondary')
+  const stageBadgeClass = (stage) => ({
+    f1: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+    f2: 'bg-lime-100 text-lime-800 dark:bg-lime-900/40 dark:text-lime-300',
+    bottled: 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300',
+    done: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+  }[stage] ?? 'bg-secondary text-secondary-foreground')
 
   const stageLabel = (stage) => ({
     f1: 'F1',
@@ -66,11 +66,13 @@
           <Table.Cell class="font-medium">{batch.name}</Table.Cell>
           <Table.Cell class="capitalize">{batch.tea_type}</Table.Cell>
           <Table.Cell>{batch.total_volume_ml} ml</Table.Cell>
-          <Table.Cell>{batch.started_at}</Table.Cell>
+          <Table.Cell>{fmtDate(batch.started_at)}</Table.Cell>
           <Table.Cell class="text-right">{batch.f1_days}</Table.Cell>
           <Table.Cell class="text-right">{batch.f2_days > 0 ? batch.f2_days : '—'}</Table.Cell>
           <Table.Cell>
-            <Badge variant={stageVariant(batch.stage)}>{stageLabel(batch.stage)}</Badge>
+            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {stageBadgeClass(batch.stage)}">
+              {stageLabel(batch.stage)}
+            </span>
           </Table.Cell>
         </Table.Row>
       {/each}
