@@ -154,15 +154,15 @@
       </div>
       <div class="flex justify-between">
         <span class="text-muted-foreground">Tea volume</span>
-        <span class="font-medium">{batch.tea_volume_l} L</span>
+        <span class="font-medium">{batch.tea_volume_ml} ml</span>
       </div>
       <div class="flex justify-between">
         <span class="text-muted-foreground">SCOBY volume</span>
-        <span class="font-medium">{batch.scoby_volume_ml} mL</span>
+        <span class="font-medium">{batch.scoby_volume_ml} ml</span>
       </div>
       <div class="flex justify-between">
         <span class="text-muted-foreground">Total volume</span>
-        <span class="font-medium">{batch.total_volume_l.toFixed(2)} L</span>
+        <span class="font-medium">{batch.total_volume_ml} ml</span>
       </div>
       <div class="flex justify-between">
         <span class="text-muted-foreground">Started</span>
