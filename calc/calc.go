@@ -5,25 +5,44 @@ import (
 	"time"
 )
 
-func ABV(initialGravity, finalGravity float64) float64 {
-	return (initialGravity - finalGravity) * 131.25
-}
-
+// FermentationDays returns elapsed days since startedAt ("2006-01-02" format).
 func FermentationDays(startedAt string) (int, error) {
 	t, err := time.Parse("2006-01-02", startedAt)
 	if err != nil {
 		return 0, err
 	}
-	return int(math.Round(time.Since(t).Hours() / 24)), nil
+	return daysSince(t), nil
 }
 
-// SugarsRemaining estimates grams of sugar left given initial amount and observed gravity drop.
-// Assumes a typical kombucha OG drop of 0.040 for full fermentation.
-func SugarsRemaining(initialSugarG, gravityDelta float64) float64 {
-	const typicalDrop = 0.040
-	remaining := initialSugarG * (1 - gravityDelta/typicalDrop)
-	if remaining < 0 {
-		return 0
+// DaysSince returns elapsed days from an ISO-8601 timestamp to now.
+func DaysSince(ts string) (int, error) {
+	t, err := parseTimestamp(ts)
+	if err != nil {
+		return 0, err
 	}
-	return remaining
+	return daysSince(t), nil
+}
+
+// DaysBetween returns elapsed days between two ISO-8601 timestamps.
+func DaysBetween(from, to string) (int, error) {
+	tf, err := parseTimestamp(from)
+	if err != nil {
+		return 0, err
+	}
+	tt, err := parseTimestamp(to)
+	if err != nil {
+		return 0, err
+	}
+	return int(math.Round(tt.Sub(tf).Hours() / 24)), nil
+}
+
+func daysSince(t time.Time) int {
+	return int(math.Round(time.Since(t).Hours() / 24))
+}
+
+func parseTimestamp(s string) (time.Time, error) {
+	if t, err := time.Parse("2006-01-02T15:04:05Z", s); err == nil {
+		return t, nil
+	}
+	return time.Parse("2006-01-02", s)
 }
