@@ -73,22 +73,17 @@
   <form onsubmit={submit} class="space-y-4">
     <div class="space-y-1">
       <Label for="name">Name</Label>
-      <Input id="name" bind:value={name} required placeholder="e.g. Summer jun #3" />
+      <Input id="name" bind:value={name} required placeholder="e.g. Summer brew #3" />
     </div>
 
     <div class="space-y-1">
-      <Label for="tea_type">Tea type</Label>
-      <select
-        id="tea_type"
-        bind:value={teaType}
-        class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-xs transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <option value="black">Black</option>
-        <option value="green">Green</option>
-        <option value="oolong">Oolong</option>
-        <option value="white">White</option>
-        <option value="herbal">Herbal</option>
-      </select>
+        <Label for="tea_type">Tea type</Label>
+        <Input
+            bind:value={teaType}
+            placeholder="e.g. Rooibos blend"
+            required
+            class="mt-1"
+        />
     </div>
 
     <div class="grid grid-cols-2 gap-4">
