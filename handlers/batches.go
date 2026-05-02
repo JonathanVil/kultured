@@ -205,6 +205,54 @@ func (h *BatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, toBatchResponse(created))
 }
 
+func (h *BatchHandler) Update(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid batch id", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Batch struct {
+			Name          string  `json:"name"`
+			TeaType       string  `json:"tea_type"`
+			TeaG          float64 `json:"tea_g"`
+			SteepMin      float64 `json:"steep_min"`
+			SugarG        float64 `json:"sugar_g"`
+			TeaVolumeMl   float64 `json:"tea_volume_ml"`
+			ScobyVolumeMl float64 `json:"scoby_volume_ml"`
+			StartedAt     string  `json:"started_at"`
+		} `json:"batch"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	b := models.Batch{
+		ID:            id,
+		Name:          req.Batch.Name,
+		TeaType:       req.Batch.TeaType,
+		TeaG:          req.Batch.TeaG,
+		SteepMin:      req.Batch.SteepMin,
+		SugarG:        req.Batch.SugarG,
+		TeaVolumeMl:   req.Batch.TeaVolumeMl,
+		ScobyVolumeMl: req.Batch.ScobyVolumeMl,
+		StartedAt:     req.Batch.StartedAt,
+	}
+	if err := models.UpdateBatch(h.DB, b); err != nil {
+		http.Error(w, "failed to update batch", http.StatusInternalServerError)
+		return
+	}
+
+	updated, err := models.GetBatch(h.DB, id)
+	if err != nil {
+		http.Error(w, "failed to retrieve updated batch", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, toBatchResponse(updated))
+}
+
 func (h *BatchHandler) UpdateStage(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
