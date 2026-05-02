@@ -21,6 +21,17 @@ type Batch struct {
 	CreatedAt     string
 }
 
+func UpdateBatch(db *sql.DB, b Batch) error {
+	_, err := db.Exec(`
+		UPDATE batches
+		SET name = ?, tea_type = ?, tea_g = ?, steep_min = ?, sugar_g = ?,
+		    tea_volume_ml = ?, scoby_volume_ml = ?, started_at = ?
+		WHERE id = ?
+	`, b.Name, b.TeaType, b.TeaG, b.SteepMin, b.SugarG,
+		b.TeaVolumeMl, b.ScobyVolumeMl, b.StartedAt, b.ID)
+	return err
+}
+
 const batchColumns = ` id, name, started_at, tea_type, tea_g, steep_min, sugar_g,
 	tea_volume_ml, scoby_volume_ml, stage, start_f2, done_at, created_at `
 

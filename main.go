@@ -30,7 +30,7 @@ func main() {
 
 	r.Use(cors.New(cors.Options{
 		AllowedOrigins: []string{"http://localhost:5173"},
-		AllowedMethods: []string{"GET", "POST", "DELETE", "OPTIONS"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Content-Type"},
 	}).Handler)
 
@@ -38,6 +38,7 @@ func main() {
 		r.Get("/batches", batchHandler.List)
 		r.Post("/batches", batchHandler.Create)
 		r.Get("/batches/{id}", batchHandler.Get)
+		r.Put("/batches/{id}", batchHandler.Update)
 		r.Post("/batches/{id}/stage", batchHandler.UpdateStage)
 		r.Delete("/batches/{id}", batchHandler.Delete)
 		r.Post("/batches/{id}/notes", noteHandler.Create)
