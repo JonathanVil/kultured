@@ -17,24 +17,18 @@ type BatchHandler struct {
 
 type BatchSummary struct {
 	models.Batch
-	DaysElapsed   int
-	LatestGravity float64
-	HasGravity    bool
+	DaysElapsed int
 }
 
 type BatchDetailData struct {
 	Batch     models.Batch
-	Readings  []models.Reading
+	Notes     []models.Note
 	Stats     BatchStats
 	NextStage string
 }
 
 type BatchStats struct {
 	FermentationDays int
-	ABV              float64
-	HasABV           bool
-	SugarsRemaining  float64
-	HasSugars        bool
 }
 
 func nextStage(current string) string {
@@ -60,13 +54,7 @@ func (h *BatchHandler) Index(w http.ResponseWriter, r *http.Request) {
 	summaries := make([]BatchSummary, 0, len(batches))
 	for _, b := range batches {
 		days, _ := calc.FermentationDays(b.StartedAt)
-		g, hasG := models.GetLatestGravityForBatch(h.DB, b.ID)
-		summaries = append(summaries, BatchSummary{
-			Batch:         b,
-			DaysElapsed:   days,
-			LatestGravity: g,
-			HasGravity:    hasG,
-		})
+		summaries = append(summaries, BatchSummary{Batch: b, DaysElapsed: days})
 	}
 
 	tmpl, err := template.ParseFiles(
@@ -89,6 +77,7 @@ func (h *BatchHandler) New(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		http.Error(w, "failed to parse templates", http.StatusInternalServerError)
+		return
 	}
 
 	tmpl.ExecuteTemplate(w, "layout", nil)
@@ -97,22 +86,24 @@ func (h *BatchHandler) New(w http.ResponseWriter, r *http.Request) {
 func (h *BatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "failed to parse form", http.StatusBadRequest)
+		return
 	}
 
 	sugarG, err := strconv.ParseFloat(r.FormValue("sugar_g"), 64)
 	if err != nil {
 		http.Error(w, "invalid sugar value", http.StatusBadRequest)
-	}
-
-	volumeL, err := strconv.ParseFloat(r.FormValue("volume_l"), 64)
-	if err != nil {
-		http.Error(w, "invalid volume value", http.StatusBadRequest)
 		return
 	}
 
-	scobyWeightG, err := strconv.ParseFloat(r.FormValue("scoby_weight_g"), 64)
+	teaVolumeL, err := strconv.ParseFloat(r.FormValue("tea_volume_l"), 64)
 	if err != nil {
-		http.Error(w, "invalid SCOBY weight value", http.StatusBadRequest)
+		http.Error(w, "invalid tea volume value", http.StatusBadRequest)
+		return
+	}
+
+	scobyVolumeMl, err := strconv.ParseFloat(r.FormValue("scoby_volume_ml"), 64)
+	if err != nil {
+		http.Error(w, "invalid SCOBY volume value", http.StatusBadRequest)
 		return
 	}
 
@@ -128,18 +119,16 @@ func (h *BatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	notes := r.FormValue("notes")
 	batch := models.Batch{
-		Name:         r.FormValue("name"),
-		StartedAt:    r.FormValue("started_at"),
-		TeaType:      r.FormValue("tea_type"),
-		TeaG:         teaG,
-		SteepMin:     steepMin,
-		SugarG:       sugarG,
-		VolumeL:      volumeL,
-		ScobyWeightG: scobyWeightG,
-		Stage:        "f1",
-		Notes:        sql.NullString{String: notes, Valid: notes != ""},
+		Name:          r.FormValue("name"),
+		StartedAt:     r.FormValue("started_at"),
+		TeaType:       r.FormValue("tea_type"),
+		TeaG:          teaG,
+		SteepMin:      steepMin,
+		SugarG:        sugarG,
+		TeaVolumeL:    teaVolumeL,
+		ScobyVolumeMl: scobyVolumeMl,
+		Stage:         "f1",
 	}
 
 	if _, err := models.CreateBatch(h.DB, batch); err != nil {
@@ -163,51 +152,24 @@ func (h *BatchHandler) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	readings, err := models.GetReadingsForBatch(h.DB, id)
+	notes, err := models.GetNotesForBatch(h.DB, id)
 	if err != nil {
-		http.Error(w, "failed to fetch readings", http.StatusInternalServerError)
+		http.Error(w, "failed to fetch notes", http.StatusInternalServerError)
 		return
 	}
 
 	days, _ := calc.FermentationDays(batch.StartedAt)
-	stats := BatchStats{FermentationDays: days}
-
-	// Find OG (oldest gravity reading) and FG (latest gravity reading)
-	var og, fg float64
-	var hasOG, hasFG bool
-	for _, reading := range readings {
-		if reading.Gravity.Valid {
-			fg = reading.Gravity.Float64
-			hasFG = true
-			break // readings are DESC ordered, so first match is latest
-		}
-	}
-	for i := len(readings) - 1; i >= 0; i-- {
-		if readings[i].Gravity.Valid {
-			og = readings[i].Gravity.Float64
-			hasOG = true
-			break
-		}
-	}
-
-	if hasOG && hasFG && og > fg {
-		stats.ABV = calc.ABV(og, fg)
-		stats.HasABV = true
-		stats.SugarsRemaining = calc.SugarsRemaining(batch.SugarG, og-fg)
-		stats.HasSugars = true
-	}
 
 	data := BatchDetailData{
 		Batch:     batch,
-		Readings:  readings,
-		Stats:     stats,
+		Notes:     notes,
+		Stats:     BatchStats{FermentationDays: days},
 		NextStage: nextStage(batch.Stage),
 	}
 
 	tmpl, err := template.ParseFiles(
 		"templates/layout.html",
 		"templates/batch.html",
-		"templates/partials/reading_row.html",
 		"templates/partials/stats.html",
 	)
 	if err != nil {
