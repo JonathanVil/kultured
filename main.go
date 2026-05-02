@@ -17,14 +17,19 @@ func main() {
 	defer database.Close()
 
 	batchHandler := &handlers.BatchHandler{DB: database}
+	noteHandler := &handlers.NoteHandler{DB: database}
 
 	r := chi.NewRouter()
-	r.Get("/", batchHandler.Index)
-	r.Get("/batches/new", batchHandler.New)
-	r.Post("/batches", batchHandler.Create)
-	r.Get("/batches/{id}", batchHandler.Show)
-	r.Post("/batches/{id}/stage", batchHandler.UpdateStage)
-	r.Delete("/batches/{id}", batchHandler.Delete)
+
+	r.Route("/api", func(r chi.Router) {
+		r.Get("/batches", batchHandler.List)
+		r.Post("/batches", batchHandler.Create)
+		r.Get("/batches/{id}", batchHandler.Get)
+		r.Post("/batches/{id}/stage", batchHandler.UpdateStage)
+		r.Delete("/batches/{id}", batchHandler.Delete)
+		r.Post("/batches/{id}/notes", noteHandler.Create)
+		r.Delete("/notes/{id}", noteHandler.Delete)
+	})
 
 	log.Println("kultured running on http://localhost:8085")
 	log.Fatal(http.ListenAndServe(":8085", r))
