@@ -65,7 +65,7 @@
         >
           <Table.Cell class="font-medium">{batch.name}</Table.Cell>
           <Table.Cell class="capitalize">{batch.tea_type}</Table.Cell>
-          <Table.Cell>{batch.total_volume_l.toFixed(1)} L</Table.Cell>
+          <Table.Cell>{batch.total_volume_ml} ml</Table.Cell>
           <Table.Cell>{batch.started_at}</Table.Cell>
           <Table.Cell class="text-right">{batch.f1_days}</Table.Cell>
           <Table.Cell class="text-right">{batch.f2_days > 0 ? batch.f2_days : '—'}</Table.Cell>

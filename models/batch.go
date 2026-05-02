@@ -13,7 +13,7 @@ type Batch struct {
 	TeaG          float64
 	SteepMin      float64
 	SugarG        float64
-	TeaVolumeL    float64
+	TeaVolumeMl   float64
 	ScobyVolumeMl float64
 	Stage         string
 	StartF2       sql.NullString
@@ -22,13 +22,13 @@ type Batch struct {
 }
 
 const batchColumns = ` id, name, started_at, tea_type, tea_g, steep_min, sugar_g,
-	tea_volume_l, scoby_volume_ml, stage, start_f2, done_at, created_at `
+	tea_volume_ml, scoby_volume_ml, stage, start_f2, done_at, created_at `
 
 func scanBatch(s interface{ Scan(...any) error }) (Batch, error) {
 	var b Batch
 	err := s.Scan(
 		&b.ID, &b.Name, &b.StartedAt, &b.TeaType, &b.TeaG, &b.SteepMin, &b.SugarG,
-		&b.TeaVolumeL, &b.ScobyVolumeMl, &b.Stage, &b.StartF2, &b.DoneAt, &b.CreatedAt,
+		&b.TeaVolumeMl, &b.ScobyVolumeMl, &b.Stage, &b.StartF2, &b.DoneAt, &b.CreatedAt,
 	)
 	return b, err
 }
@@ -59,9 +59,9 @@ func GetBatch(db *sql.DB, id int) (Batch, error) {
 func CreateBatch(db *sql.DB, b Batch) (int64, error) {
 	result, err := db.Exec(`
 		INSERT INTO batches
-			(name, started_at, tea_type, tea_g, steep_min, sugar_g, tea_volume_l, scoby_volume_ml, stage)
+			(name, started_at, tea_type, tea_g, steep_min, sugar_g, tea_volume_ml, scoby_volume_ml, stage)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, b.Name, b.StartedAt, b.TeaType, b.TeaG, b.SteepMin, b.SugarG, b.TeaVolumeL, b.ScobyVolumeMl, b.Stage)
+	`, b.Name, b.StartedAt, b.TeaType, b.TeaG, b.SteepMin, b.SugarG, b.TeaVolumeMl, b.ScobyVolumeMl, b.Stage)
 	if err != nil {
 		return 0, err
 	}

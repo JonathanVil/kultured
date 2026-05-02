@@ -22,9 +22,9 @@ type batchResponse struct {
 	TeaG          float64  `json:"tea_g"`
 	SteepMin      float64  `json:"steep_min"`
 	SugarG        float64  `json:"sugar_g"`
-	TeaVolumeL    float64  `json:"tea_volume_l"`
+	TeaVolumeMl   float64  `json:"tea_volume_ml"`
 	ScobyVolumeMl float64  `json:"scoby_volume_ml"`
-	TotalVolumeL  float64  `json:"total_volume_l"`
+	TotalVolumeMl float64  `json:"total_volume_ml"`
 	Stage         string   `json:"stage"`
 	StartedAt     string   `json:"started_at"`
 	StartF2       *string  `json:"start_f2"`
@@ -49,7 +49,7 @@ type noteResponse struct {
 }
 
 func toBatchResponse(b models.Batch) batchResponse {
-	totalVolumeMl := b.TeaVolumeL*1000 + b.ScobyVolumeMl
+	totalVolumeMl := b.TeaVolumeMl + b.ScobyVolumeMl
 
 	var startF2, doneAt *string
 	if b.StartF2.Valid {
@@ -84,8 +84,8 @@ func toBatchResponse(b models.Batch) batchResponse {
 	}
 
 	var teaGPerL float64
-	if b.TeaVolumeL > 0 {
-		teaGPerL = b.TeaG / b.TeaVolumeL
+	if b.TeaVolumeMl > 0 {
+		teaGPerL = b.TeaG / b.TeaVolumeMl * 1000
 	}
 
 	return batchResponse{
@@ -95,9 +95,9 @@ func toBatchResponse(b models.Batch) batchResponse {
 		TeaG:          b.TeaG,
 		SteepMin:      b.SteepMin,
 		SugarG:        b.SugarG,
-		TeaVolumeL:    b.TeaVolumeL,
+		TeaVolumeMl:   b.TeaVolumeMl,
 		ScobyVolumeMl: b.ScobyVolumeMl,
-		TotalVolumeL:  totalVolumeMl / 1000,
+		TotalVolumeMl: totalVolumeMl,
 		Stage:         b.Stage,
 		StartedAt:     b.StartedAt,
 		StartF2:       startF2,
@@ -167,7 +167,7 @@ func (h *BatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 		TeaG          float64 `json:"tea_g"`
 		SteepMin      float64 `json:"steep_min"`
 		SugarG        float64 `json:"sugar_g"`
-		TeaVolumeL    float64 `json:"tea_volume_l"`
+		TeaVolumeMl   float64 `json:"tea_volume_ml"`
 		ScobyVolumeMl float64 `json:"scoby_volume_ml"`
 		StartedAt     string  `json:"started_at"`
 	}
@@ -187,7 +187,7 @@ func (h *BatchHandler) Create(w http.ResponseWriter, r *http.Request) {
 		TeaG:          req.TeaG,
 		SteepMin:      req.SteepMin,
 		SugarG:        req.SugarG,
-		TeaVolumeL:    req.TeaVolumeL,
+		TeaVolumeMl:   req.TeaVolumeMl,
 		ScobyVolumeMl: req.ScobyVolumeMl,
 		Stage:         "f1",
 	}

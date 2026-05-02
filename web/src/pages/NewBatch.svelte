@@ -6,30 +6,30 @@
   import * as Card from '$lib/components/ui/card'
 
   let name = $state('')
-  let teaType = $state('black')
+  let teaType = $state('Black')
   let teaG = $state('')
   let steepMin = $state('')
   let startedAt = $state(new Date().toISOString().slice(0, 10))
-  let teaVolumeL = $state('')
-  let scobyVolumeMl = $state('')
+  let teaVolumeML = $state('')
+  let scobyVolumeML = $state('')
   let sugarG = $state('')
 
   let submitting = $state(false)
   let error = $state(null)
 
-  const totalVolumeMl = $derived(
-    (parseFloat(teaVolumeL) || 0) * 1000 + (parseFloat(scobyVolumeMl) || 0)
+  const totalVolumeML = $derived(
+    (parseFloat(teaVolumeML) || 0) + (parseFloat(scobyVolumeML) || 0)
   )
   const backslopPct = $derived(
-    totalVolumeMl > 0 ? (parseFloat(scobyVolumeMl) || 0) / totalVolumeMl * 100 : null
+    totalVolumeML > 0 ? (parseFloat(scobyVolumeML) || 0) / totalVolumeML * 100 : null
   )
   const sugarPct = $derived(
-    totalVolumeMl > 0 ? (parseFloat(sugarG) || 0) / totalVolumeMl * 100 : null
+    totalVolumeML > 0 ? (parseFloat(sugarG) || 0) / totalVolumeML * 100 : null
   )
   const teaGPerL = $derived(
-    (parseFloat(teaVolumeL) || 0) > 0 ? (parseFloat(teaG) || 0) / (parseFloat(teaVolumeL) || 0) : null
+    (parseFloat(teaVolumeML) || 0) > 0 ? (parseFloat(teaG) || 0) / (parseFloat(teaVolumeML) || 0) * 1000 : null
   )
-  const showPreview = $derived(totalVolumeMl > 0 || teaGPerL !== null)
+  const showPreview = $derived(totalVolumeML > 0 || teaGPerL !== null)
 
   async function submit(e) {
     e.preventDefault()
@@ -45,8 +45,8 @@
           tea_g: parseFloat(teaG),
           steep_min: parseFloat(steepMin),
           started_at: startedAt,
-          tea_volume_l: parseFloat(teaVolumeL),
-          scoby_volume_ml: parseFloat(scobyVolumeMl),
+          tea_volume_ml: parseFloat(teaVolumeML),
+          scoby_volume_ml: parseFloat(scobyVolumeML),
           sugar_g: parseFloat(sugarG),
         }),
       })
@@ -99,12 +99,12 @@
 
     <div class="grid grid-cols-2 gap-4">
       <div class="space-y-1">
-        <Label for="tea_volume_l">Tea volume (L)</Label>
-        <Input id="tea_volume_l" type="number" min="0" step="0.1" bind:value={teaVolumeL} required />
+        <Label for="tea_volume_ml">Tea volume (ml)</Label>
+        <Input id="tea_volume_ml" type="number" min="0" step="0.1" bind:value={teaVolumeML} required />
       </div>
       <div class="space-y-1">
-        <Label for="scoby_volume_ml">SCOBY volume (mL)</Label>
-        <Input id="scoby_volume_ml" type="number" min="0" step="1" bind:value={scobyVolumeMl} required />
+        <Label for="scoby_volume_ml">SCOBY volume (ml)</Label>
+        <Input id="scoby_volume_ml" type="number" min="0" step="1" bind:value={scobyVolumeML} required />
       </div>
     </div>
 
@@ -124,7 +124,7 @@
         <Card.Content class="pt-4 pb-4 grid grid-cols-3 gap-4 text-sm text-center">
           <div>
             <p class="text-muted-foreground text-xs mb-1">Total volume</p>
-            <p class="font-medium">{(totalVolumeMl / 1000).toFixed(2)} L</p>
+            <p class="font-medium">{totalVolumeML} ml</p>
           </div>
           <div>
             <p class="text-muted-foreground text-xs mb-1">Backslop</p>
