@@ -1,0 +1,4 @@
+ALTER TABLE batches ADD COLUMN reminder_enabled INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE batches ADD COLUMN reminder_interval_days INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE batches ADD COLUMN reminder_time TEXT NOT NULL DEFAULT '08:00';
+ALTER TABLE batches ADD COLUMN last_reminded_at TEXT;

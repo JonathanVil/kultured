@@ -20,21 +20,119 @@
     let deleting = $state(false)
     let editing = $state(false)
     let editingBatch = $state(null)
+    let ntfyEnabled = $state(false)
+
+    // Reminder UI state
+    let reminderMode = $state('idle') // 'idle' | 'editing'
+    let reminderDraft = $state({reminder_interval_days: 1, reminder_time: '08:00', reminder_day_of_week: null})
+    let savingReminder = $state(false)
+
+    const DOW_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+    const reminderFreqKey = $derived.by(() => {
+        const d = reminderDraft.reminder_interval_days
+        if (d === 1) return 'daily'
+        if (d === 7) return 'weekly'
+        return 'custom'
+    })
+
+    function reminderSummary(b) {
+        const d = b.reminder_interval_days
+        let freq
+        if (d === 1) {
+            freq = 'Daily'
+        } else if (d === 7 && b.reminder_day_of_week != null) {
+            freq = `Weekly on ${DOW_LABELS[b.reminder_day_of_week]}`
+        } else {
+            freq = `Every ${d} days`
+        }
+        return `${freq} at ${b.reminder_time}`
+    }
+
+    function openReminderForm() {
+        reminderDraft = {
+            reminder_interval_days: batch.reminder_interval_days ?? 1,
+            reminder_time: batch.reminder_time ?? '08:00',
+            reminder_day_of_week: batch.reminder_day_of_week ?? (new Date().getDay() + 6) % 7,
+        }
+        reminderMode = 'editing'
+    }
+
+    function setReminderFreq(freq) {
+        if (freq === 'daily') {
+            reminderDraft.reminder_interval_days = 1
+            reminderDraft.reminder_day_of_week = null
+        } else if (freq === 'weekly') {
+            reminderDraft.reminder_interval_days = 7
+            if (reminderDraft.reminder_day_of_week == null) {
+                reminderDraft.reminder_day_of_week = (new Date().getDay() + 6) % 7
+            }
+        } else if (freq === 'custom') {
+            if (reminderDraft.reminder_interval_days === 1 || reminderDraft.reminder_interval_days === 7) {
+                reminderDraft.reminder_interval_days = 2
+            }
+            reminderDraft.reminder_day_of_week = null
+        }
+    }
+
+    async function saveReminder() {
+        savingReminder = true
+        error = null
+        try {
+            const res = await fetch(`/api/batches/${id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({batch: {
+                    ...batch,
+                    reminder_enabled: true,
+                    reminder_interval_days: reminderDraft.reminder_interval_days,
+                    reminder_time: reminderDraft.reminder_time,
+                    reminder_day_of_week: reminderDraft.reminder_day_of_week,
+                }}),
+            })
+            if (!res.ok) throw new Error(`${res.status}`)
+            const updated = await res.json()
+            batch = {...updated, notes: batch.notes}
+            reminderMode = 'idle'
+        } catch (e) {
+            error = e.message
+        } finally {
+            savingReminder = false
+        }
+    }
+
+    async function removeReminder() {
+        error = null
+        try {
+            const res = await fetch(`/api/batches/${id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({batch: {...batch, reminder_enabled: false}}),
+            })
+            if (!res.ok) throw new Error(`${res.status}`)
+            const updated = await res.json()
+            batch = {...updated, notes: batch.notes}
+            reminderMode = 'idle'
+        } catch (e) {
+            error = e.message
+        }
+    }
 
     $effect(() => {
-        fetch(`/api/batches/${id}`)
-            .then(r => {
-                if (!r.ok) throw new Error(`${r.status}`);
+        Promise.all([
+            fetch(`/api/batches/${id}`).then(r => {
+                if (!r.ok) throw new Error(`${r.status}`)
                 return r.json()
-            })
-            .then(data => {
-                batch = data;
-                loading = false
-            })
-            .catch(e => {
-                error = e.message;
-                loading = false
-            })
+            }),
+            fetch('/api/config').then(r => r.ok ? r.json() : {ntfy_enabled: false}),
+        ]).then(([data, cfg]) => {
+            batch = data
+            ntfyEnabled = cfg.ntfy_enabled
+            loading = false
+        }).catch(e => {
+            error = e.message
+            loading = false
+        })
     })
 
     const stageMap = {f1: 'f2', f2: 'bottled', bottled: 'done'}
@@ -298,12 +396,85 @@
     <!-- Stage advancement -->
     {#if nextStageLabel}
         <Card.Root class="mb-4">
-            <Card.Content class="pt-4 pb-4 flex items-center justify-between">
+            <Card.Content class="pt-2 pb-2 flex items-center justify-between">
                 <p class="text-sm text-muted-foreground">Ready for the next stage?</p>
                 <Button onclick={advanceStage} disabled={advancingStage}>
                     {advancingStage ? 'Updating…' : nextStageLabel}
                 </Button>
             </Card.Content>
+        </Card.Root>
+    {/if}
+
+    <!-- Reminder (only shown when ntfy is configured) -->
+    {#if ntfyEnabled && batch.stage !== 'done'}
+        <Card.Root class="mb-4">
+            {#if reminderMode === 'idle'}
+                <Card.Content class="pt-2 pb-2 flex items-center justify-between">
+                    {#if batch.reminder_enabled}
+                        <div>
+                            <p class="text-sm font-medium">Reminder</p>
+                            <p class="text-xs text-muted-foreground">{reminderSummary(batch)}</p>
+                        </div>
+                        <Button variant="ghost" size="sm" class="text-muted-foreground hover:text-destructive" onclick={removeReminder}>
+                            Remove reminder
+                        </Button>
+                    {:else}
+                        <p class="text-sm text-muted-foreground">No reminder set.</p>
+                        <Button variant="outline" size="sm" onclick={openReminderForm}>Add reminder</Button>
+                    {/if}
+                </Card.Content>
+            {:else}
+                <Card.Content class="pt-2 pb-2 space-y-3">
+                    <p class="text-sm font-medium">Reminder</p>
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                        <div class="space-y-1">
+                            <span class="text-muted-foreground">Frequency</span>
+                            <select
+                                value={reminderFreqKey}
+                                onchange={e => setReminderFreq(e.target.value)}
+                                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                            >
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-muted-foreground">Time</span>
+                            <Input type="time" bind:value={reminderDraft.reminder_time} />
+                        </div>
+                        {#if reminderFreqKey === 'weekly'}
+                            <div class="space-y-1">
+                                <span class="text-muted-foreground">Day</span>
+                                <select
+                                    bind:value={reminderDraft.reminder_day_of_week}
+                                    class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                >
+                                    {#each DOW_LABELS as label, i}
+                                        <option value={i}>{label}</option>
+                                    {/each}
+                                </select>
+                            </div>
+                        {:else if reminderFreqKey === 'custom'}
+                            <div class="space-y-1">
+                                <span class="text-muted-foreground">Days between</span>
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    bind:value={reminderDraft.reminder_interval_days}
+                                />
+                            </div>
+                        {/if}
+                    </div>
+                    <div class="flex gap-2 pt-1">
+                        <Button size="sm" onclick={saveReminder} disabled={savingReminder}>
+                            {savingReminder ? 'Saving…' : 'Save reminder'}
+                        </Button>
+                        <Button variant="outline" size="sm" onclick={() => reminderMode = 'idle'}>Cancel</Button>
+                    </div>
+                </Card.Content>
+            {/if}
         </Card.Root>
     {/if}
 

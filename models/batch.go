@@ -6,19 +6,24 @@ import (
 )
 
 type Batch struct {
-	ID            int
-	Name          string
-	StartedAt     string
-	TeaType       string
-	TeaG          float64
-	SteepMin      float64
-	SugarG        float64
-	TeaVolumeMl   float64
-	ScobyVolumeMl float64
-	Stage         string
-	StartF2       sql.NullString
-	DoneAt        sql.NullString
-	CreatedAt     string
+	ID                 int
+	Name               string
+	StartedAt          string
+	TeaType            string
+	TeaG               float64
+	SteepMin           float64
+	SugarG             float64
+	TeaVolumeMl        float64
+	ScobyVolumeMl      float64
+	Stage              string
+	StartF2            sql.NullString
+	DoneAt             sql.NullString
+	CreatedAt          string
+	ReminderEnabled      bool
+	ReminderIntervalDays int
+	ReminderTime         string
+	ReminderDayOfWeek    sql.NullInt64
+	LastRemindedAt       sql.NullString
 }
 
 func UpdateBatch(db *sql.DB, b Batch) error {
@@ -32,42 +37,50 @@ func UpdateBatch(db *sql.DB, b Batch) error {
 			UPDATE batches
 			SET name=?, tea_type=?, tea_g=?, steep_min=?, sugar_g=?,
 			    tea_volume_ml=?, scoby_volume_ml=?, started_at=?,
-			    stage=?, start_f2=NULL, done_at=NULL
+			    stage=?, start_f2=NULL, done_at=NULL,
+			    reminder_enabled=?, reminder_interval_days=?, reminder_time=?, reminder_day_of_week=?
 			WHERE id=?
 		`, b.Name, b.TeaType, b.TeaG, b.SteepMin, b.SugarG,
-			b.TeaVolumeMl, b.ScobyVolumeMl, b.StartedAt, b.Stage, b.ID)
+			b.TeaVolumeMl, b.ScobyVolumeMl, b.StartedAt, b.Stage,
+			b.ReminderEnabled, b.ReminderIntervalDays, b.ReminderTime, b.ReminderDayOfWeek, b.ID)
 		return err
 	case "f2":
 		_, err := db.Exec(`
 			UPDATE batches
 			SET name=?, tea_type=?, tea_g=?, steep_min=?, sugar_g=?,
 			    tea_volume_ml=?, scoby_volume_ml=?, started_at=?,
-			    stage=?, done_at=NULL
+			    stage=?, done_at=NULL,
+			    reminder_enabled=?, reminder_interval_days=?, reminder_time=?, reminder_day_of_week=?
 			WHERE id=?
 		`, b.Name, b.TeaType, b.TeaG, b.SteepMin, b.SugarG,
-			b.TeaVolumeMl, b.ScobyVolumeMl, b.StartedAt, b.Stage, b.ID)
+			b.TeaVolumeMl, b.ScobyVolumeMl, b.StartedAt, b.Stage,
+			b.ReminderEnabled, b.ReminderIntervalDays, b.ReminderTime, b.ReminderDayOfWeek, b.ID)
 		return err
 	default:
 		_, err := db.Exec(`
 			UPDATE batches
 			SET name=?, tea_type=?, tea_g=?, steep_min=?, sugar_g=?,
 			    tea_volume_ml=?, scoby_volume_ml=?, started_at=?,
-			    stage=?
+			    stage=?,
+			    reminder_enabled=?, reminder_interval_days=?, reminder_time=?, reminder_day_of_week=?
 			WHERE id=?
 		`, b.Name, b.TeaType, b.TeaG, b.SteepMin, b.SugarG,
-			b.TeaVolumeMl, b.ScobyVolumeMl, b.StartedAt, b.Stage, b.ID)
+			b.TeaVolumeMl, b.ScobyVolumeMl, b.StartedAt, b.Stage,
+			b.ReminderEnabled, b.ReminderIntervalDays, b.ReminderTime, b.ReminderDayOfWeek, b.ID)
 		return err
 	}
 }
 
 const batchColumns = ` id, name, started_at, tea_type, tea_g, steep_min, sugar_g,
-	tea_volume_ml, scoby_volume_ml, stage, start_f2, done_at, created_at `
+	tea_volume_ml, scoby_volume_ml, stage, start_f2, done_at, created_at,
+	reminder_enabled, reminder_interval_days, reminder_time, reminder_day_of_week, last_reminded_at `
 
 func scanBatch(s interface{ Scan(...any) error }) (Batch, error) {
 	var b Batch
 	err := s.Scan(
 		&b.ID, &b.Name, &b.StartedAt, &b.TeaType, &b.TeaG, &b.SteepMin, &b.SugarG,
 		&b.TeaVolumeMl, &b.ScobyVolumeMl, &b.Stage, &b.StartF2, &b.DoneAt, &b.CreatedAt,
+		&b.ReminderEnabled, &b.ReminderIntervalDays, &b.ReminderTime, &b.ReminderDayOfWeek, &b.LastRemindedAt,
 	)
 	return b, err
 }
@@ -95,6 +108,24 @@ func GetBatch(db *sql.DB, id int) (Batch, error) {
 	return scanBatch(row)
 }
 
+func GetBatchesWithReminders(db *sql.DB) ([]Batch, error) {
+	rows, err := db.Query(`SELECT` + batchColumns + `FROM batches WHERE reminder_enabled = 1 AND stage != 'done'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var batches []Batch
+	for rows.Next() {
+		b, err := scanBatch(rows)
+		if err != nil {
+			return nil, err
+		}
+		batches = append(batches, b)
+	}
+	return batches, rows.Err()
+}
+
 func CreateBatch(db *sql.DB, b Batch) (int64, error) {
 	result, err := db.Exec(`
 		INSERT INTO batches
@@ -120,6 +151,11 @@ func UpdateStage(db *sql.DB, id int, stage string) error {
 		_, err := db.Exec(`UPDATE batches SET stage = ? WHERE id = ?`, stage, id)
 		return err
 	}
+}
+
+func UpdateReminderSent(db *sql.DB, id int, ts string) error {
+	_, err := db.Exec(`UPDATE batches SET last_reminded_at = ? WHERE id = ?`, ts, id)
+	return err
 }
 
 func DeleteBatch(db *sql.DB, id int) error {
