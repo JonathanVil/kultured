@@ -2,6 +2,14 @@
 
 A personal kombucha batch tracker. Tracks fermentation stages, brew parameters, and notes per batch.
 
+## Running it using Docker
+
+The app is published as a container image on GHCR and can be run using:
+
+```sh
+docker run -p 8085:8085 ghcr.io/jonathanvil/kultured
+```
+
 ## Stack
 
 - **Backend** — Go, [chi](https://github.com/go-chi/chi), SQLite (`modernc.org/sqlite`)
