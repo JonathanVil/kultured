@@ -37,13 +37,15 @@ func main() {
 		Pass:  os.Getenv("NTFY_PASS"),
 	}
 	if ntfyCfg.Enabled() {
+		// TODO: test ntfy by sending a test msg and panic/log error if not successful
+
 		log.Printf("ntfy reminders enabled: %s/%s", ntfyCfg.URL, ntfyCfg.Topic)
 		notify.StartScheduler(database, ntfyCfg)
 	} else {
 		log.Println("ntfy reminders disabled (NTFY_URL/NTFY_TOPIC not set)")
 	}
 
-	batchHandler := &handlers.BatchHandler{DB: database}
+	batchHandler := &handlers.BatchHandler{DB: database, NtfyCfg: ntfyCfg}
 	noteHandler := &handlers.NoteHandler{DB: database}
 	configHandler := &handlers.ConfigHandler{NtfyEnabled: ntfyCfg.Enabled()}
 
@@ -69,6 +71,7 @@ func main() {
 		r.Get("/batches/{id}", batchHandler.Get)
 		r.Put("/batches/{id}", batchHandler.Update)
 		r.Post("/batches/{id}/stage", batchHandler.UpdateStage)
+		r.Post("/batches/{id}/reminder/test", batchHandler.TestReminder)
 		r.Delete("/batches/{id}", batchHandler.Delete)
 		r.Post("/batches/{id}/notes", noteHandler.Create)
 		r.Delete("/notes/{id}", noteHandler.Delete)

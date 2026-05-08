@@ -109,6 +109,25 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 
+@keyframes check-pop {
+  0%   { transform: scale(0);   opacity: 0; }
+  55%  { transform: scale(1.4); opacity: 1; }
+  75%  { transform: scale(0.9); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-4px); }
+  40%      { transform: translateX(4px); }
+  60%      { transform: translateX(-3px); }
+  80%      { transform: translateX(3px); }
+}
+
+@theme inline {
+  --animate-check-pop: check-pop 0.35s ease-out forwards;
+  --animate-shake: shake 0.35s ease-out forwards;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

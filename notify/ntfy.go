@@ -23,6 +23,11 @@ func (c Config) Enabled() bool {
 	return c.URL != "" && c.Topic != ""
 }
 
+func (c Config) SendReminder(b models.Batch) error {
+	msg := fmt.Sprintf("%s in %s is on day %d", b.Name, stageLabel(b.Stage), currentDay(b))
+	return c.send(msg)
+}
+
 func (c Config) send(message string) error {
 	url := strings.TrimRight(c.URL, "/") + "/" + c.Topic
 	req, err := http.NewRequest("POST", url, strings.NewReader(message))
@@ -95,10 +100,7 @@ func checkAndSend(db *sql.DB, cfg Config) {
 			}
 		}
 
-		day := currentDay(b)
-		msg := fmt.Sprintf("%s in %s is on day %d", b.Name, stageLabel(b.Stage), day)
-
-		if err := cfg.send(msg); err != nil {
+		if err := cfg.SendReminder(b); err != nil {
 			log.Printf("reminder: failed to send for batch %d: %v", b.ID, err)
 			continue
 		}
