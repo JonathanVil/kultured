@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE: ghcr.io/${{ github.repository_owner }}/kultured
+  IMAGE: ghcr.io/jonathanvil/kultured
 
 jobs:
   deploy:
