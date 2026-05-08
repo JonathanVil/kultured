@@ -1,10 +1,12 @@
 package main
 
 import (
+	"crypto/subtle"
 	"embed"
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/JonathanVil/kultured/db"
@@ -17,7 +19,11 @@ import (
 var webDist embed.FS
 
 func main() {
-	database, err := db.Open("brew.db")
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "brew.db"
+	}
+	database, err := db.Open(dbPath)
 	if err != nil {
 		log.Fatal("could not open database:", err)
 	}
@@ -27,6 +33,13 @@ func main() {
 	noteHandler := &handlers.NoteHandler{DB: database}
 
 	r := chi.NewRouter()
+
+	if user, pass := os.Getenv("AUTH_USER"), os.Getenv("AUTH_PASS"); user != "" && pass != "" {
+		r.Use(basicAuth(user, pass))
+		log.Println("basic auth enabled")
+	} else {
+		log.Println("warning: AUTH_USER/AUTH_PASS not set — running without authentication")
+	}
 
 	r.Use(cors.New(cors.Options{
 		AllowedOrigins: []string{"http://localhost:5173"},
@@ -51,8 +64,30 @@ func main() {
 	}
 	r.Handle("/*", spaHandler(distFS))
 
-	log.Println("kultured running on http://localhost:8085")
-	log.Fatal(http.ListenAndServe(":8085", r))
+	addr := os.Getenv("ADDR")
+	if addr == "" {
+		addr = ":8085"
+	}
+	log.Printf("kultured running on http://localhost%s", addr)
+	log.Fatal(http.ListenAndServe(addr, r))
+}
+
+// basicAuth is a middleware that enforces HTTP Basic Auth using constant-time
+// comparison to prevent timing attacks.
+func basicAuth(username, password string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			u, p, ok := r.BasicAuth()
+			userMatch := subtle.ConstantTimeCompare([]byte(u), []byte(username)) == 1
+			passMatch := subtle.ConstantTimeCompare([]byte(p), []byte(password)) == 1
+			if !ok || !userMatch || !passMatch {
+				w.Header().Set("WWW-Authenticate", `Basic realm="kultured", charset="UTF-8"`)
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // spaHandler serves static files from fsys and falls back to index.html for
