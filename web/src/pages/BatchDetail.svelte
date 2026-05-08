@@ -7,6 +7,7 @@
     import {Input} from '$lib/components/ui/input';
     import {Button} from "$lib/components/ui/button/index.js";
     import {fmtDate, fmtTs} from '$lib/utils.js';
+    import {Check, X} from '@lucide/svelte';
 
     let {params = {}} = $props()
     const id = params.id
@@ -98,6 +99,24 @@
             error = e.message
         } finally {
             savingReminder = false
+        }
+    }
+
+    let testingReminder = $state(false)
+    let testReminderStatus = $state(null) // null | 'ok' | 'error'
+
+    async function testReminder() {
+        testingReminder = true
+        testReminderStatus = null
+        try {
+            const res = await fetch(`/api/batches/${id}/reminder/test`, {method: 'POST'})
+            testReminderStatus = res.ok ? 'ok' : 'error'
+            if (!res.ok) error = `Test failed: ${res.status}`
+        } catch (e) {
+            testReminderStatus = 'error'
+            error = e.message
+        } finally {
+            testingReminder = false
         }
     }
 
@@ -415,9 +434,26 @@
                             <p class="text-sm font-medium">Reminder</p>
                             <p class="text-xs text-muted-foreground">{reminderSummary(batch)}</p>
                         </div>
-                        <Button variant="ghost" size="sm" class="text-muted-foreground hover:text-destructive" onclick={removeReminder}>
-                            Remove reminder
-                        </Button>
+                        <div class="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onclick={testReminder}
+                                disabled={testingReminder || testReminderStatus != null}
+                                class={'disabled:opacity-100 ' + (testReminderStatus === 'ok' ? 'border-emerald-500 text-emerald-600' : testReminderStatus === 'error' ? 'border-red-500 text-red-600' : '')}
+                            >
+                                {#if testReminderStatus === 'ok'}
+                                    <Check class="h-4 w-4 animate-check-pop" />
+                                {:else if testReminderStatus === 'error'}
+                                    <X class="h-4 w-4 animate-shake" />
+                                {:else}
+                                    Send test
+                                {/if}
+                            </Button>
+                            <Button variant="ghost" size="sm" class="text-muted-foreground hover:text-destructive" onclick={removeReminder}>
+                                Remove
+                            </Button>
+                        </div>
                     {:else}
                         <p class="text-sm text-muted-foreground">No reminder set.</p>
                         <Button variant="outline" size="sm" onclick={openReminderForm}>Add reminder</Button>

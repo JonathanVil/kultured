@@ -8,11 +8,13 @@ import (
 
 	"github.com/JonathanVil/kultured/calc"
 	"github.com/JonathanVil/kultured/models"
+	"github.com/JonathanVil/kultured/notify"
 	"github.com/go-chi/chi/v5"
 )
 
 type BatchHandler struct {
-	DB *sql.DB
+	DB      *sql.DB
+	NtfyCfg notify.Config
 }
 
 type ConfigHandler struct {
@@ -357,6 +359,27 @@ func (h *BatchHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	if err := models.DeleteBatch(h.DB, id); err != nil {
 		http.Error(w, "failed to delete batch", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *BatchHandler) TestReminder(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid batch id", http.StatusBadRequest)
+		return
+	}
+
+	batch, err := models.GetBatch(h.DB, id)
+	if err != nil {
+		http.Error(w, "batch not found", http.StatusNotFound)
+		return
+	}
+
+	if err := h.NtfyCfg.SendReminder(batch); err != nil {
+		http.Error(w, "failed to send reminder: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
