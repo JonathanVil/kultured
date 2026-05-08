@@ -11,6 +11,7 @@ import (
 
 	"github.com/JonathanVil/kultured/db"
 	"github.com/JonathanVil/kultured/handlers"
+	"github.com/JonathanVil/kultured/notify"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 )
@@ -29,8 +30,22 @@ func main() {
 	}
 	defer database.Close()
 
+	ntfyCfg := notify.Config{
+		URL:   os.Getenv("NTFY_URL"),
+		Topic: os.Getenv("NTFY_TOPIC"),
+		User:  os.Getenv("NTFY_USER"),
+		Pass:  os.Getenv("NTFY_PASS"),
+	}
+	if ntfyCfg.Enabled() {
+		log.Printf("ntfy reminders enabled: %s/%s", ntfyCfg.URL, ntfyCfg.Topic)
+		notify.StartScheduler(database, ntfyCfg)
+	} else {
+		log.Println("ntfy reminders disabled (NTFY_URL/NTFY_TOPIC not set)")
+	}
+
 	batchHandler := &handlers.BatchHandler{DB: database}
 	noteHandler := &handlers.NoteHandler{DB: database}
+	configHandler := &handlers.ConfigHandler{NtfyEnabled: ntfyCfg.Enabled()}
 
 	r := chi.NewRouter()
 
@@ -48,6 +63,7 @@ func main() {
 	}).Handler)
 
 	r.Route("/api", func(r chi.Router) {
+		r.Get("/config", configHandler.Get)
 		r.Get("/batches", batchHandler.List)
 		r.Post("/batches", batchHandler.Create)
 		r.Get("/batches/{id}", batchHandler.Get)

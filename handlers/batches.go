@@ -15,26 +15,34 @@ type BatchHandler struct {
 	DB *sql.DB
 }
 
+type ConfigHandler struct {
+	NtfyEnabled bool
+}
+
 type batchResponse struct {
-	ID            int      `json:"id"`
-	Name          string   `json:"name"`
-	TeaType       string   `json:"tea_type"`
-	TeaG          float64  `json:"tea_g"`
-	SteepMin      float64  `json:"steep_min"`
-	SugarG        float64  `json:"sugar_g"`
-	TeaVolumeMl   float64  `json:"tea_volume_ml"`
-	ScobyVolumeMl float64  `json:"scoby_volume_ml"`
-	TotalVolumeMl float64  `json:"total_volume_ml"`
-	Stage         string   `json:"stage"`
-	StartedAt     string   `json:"started_at"`
-	StartF2       *string  `json:"start_f2"`
-	DoneAt        *string  `json:"done_at"`
-	CreatedAt     string   `json:"created_at"`
-	F1Days        int      `json:"f1_days"`
-	F2Days        int      `json:"f2_days"`
-	BackslopPct   float64  `json:"backslop_pct"`
-	SugarPct      float64  `json:"sugar_pct"`
-	TeaGPerL      float64  `json:"tea_g_per_l"`
+	ID                   int     `json:"id"`
+	Name                 string  `json:"name"`
+	TeaType              string  `json:"tea_type"`
+	TeaG                 float64 `json:"tea_g"`
+	SteepMin             float64 `json:"steep_min"`
+	SugarG               float64 `json:"sugar_g"`
+	TeaVolumeMl          float64 `json:"tea_volume_ml"`
+	ScobyVolumeMl        float64 `json:"scoby_volume_ml"`
+	TotalVolumeMl        float64 `json:"total_volume_ml"`
+	Stage                string  `json:"stage"`
+	StartedAt            string  `json:"started_at"`
+	StartF2              *string `json:"start_f2"`
+	DoneAt               *string `json:"done_at"`
+	CreatedAt            string  `json:"created_at"`
+	F1Days               int     `json:"f1_days"`
+	F2Days               int     `json:"f2_days"`
+	BackslopPct          float64 `json:"backslop_pct"`
+	SugarPct             float64 `json:"sugar_pct"`
+	TeaGPerL             float64 `json:"tea_g_per_l"`
+	ReminderEnabled      bool    `json:"reminder_enabled"`
+	ReminderIntervalDays int     `json:"reminder_interval_days"`
+	ReminderTime         string  `json:"reminder_time"`
+	ReminderDayOfWeek    *int    `json:"reminder_day_of_week"`
 }
 
 type batchDetailResponse struct {
@@ -88,26 +96,45 @@ func toBatchResponse(b models.Batch) batchResponse {
 		teaGPerL = b.TeaG / b.TeaVolumeMl * 1000
 	}
 
+	intervalDays := b.ReminderIntervalDays
+	if intervalDays == 0 {
+		intervalDays = 1
+	}
+	reminderTime := b.ReminderTime
+	if reminderTime == "" {
+		reminderTime = "08:00"
+	}
+
+	var reminderDOW *int
+	if b.ReminderDayOfWeek.Valid {
+		v := int(b.ReminderDayOfWeek.Int64)
+		reminderDOW = &v
+	}
+
 	return batchResponse{
-		ID:            b.ID,
-		Name:          b.Name,
-		TeaType:       b.TeaType,
-		TeaG:          b.TeaG,
-		SteepMin:      b.SteepMin,
-		SugarG:        b.SugarG,
-		TeaVolumeMl:   b.TeaVolumeMl,
-		ScobyVolumeMl: b.ScobyVolumeMl,
-		TotalVolumeMl: totalVolumeMl,
-		Stage:         b.Stage,
-		StartedAt:     b.StartedAt,
-		StartF2:       startF2,
-		DoneAt:        doneAt,
-		CreatedAt:     b.CreatedAt,
-		F1Days:        f1Days,
-		F2Days:        f2Days,
-		BackslopPct:   backslopPct,
-		SugarPct:      sugarPct,
-		TeaGPerL:      teaGPerL,
+		ID:                   b.ID,
+		Name:                 b.Name,
+		TeaType:              b.TeaType,
+		TeaG:                 b.TeaG,
+		SteepMin:             b.SteepMin,
+		SugarG:               b.SugarG,
+		TeaVolumeMl:          b.TeaVolumeMl,
+		ScobyVolumeMl:        b.ScobyVolumeMl,
+		TotalVolumeMl:        totalVolumeMl,
+		Stage:                b.Stage,
+		StartedAt:            b.StartedAt,
+		StartF2:              startF2,
+		DoneAt:               doneAt,
+		CreatedAt:            b.CreatedAt,
+		F1Days:               f1Days,
+		F2Days:               f2Days,
+		BackslopPct:          backslopPct,
+		SugarPct:             sugarPct,
+		TeaGPerL:             teaGPerL,
+		ReminderEnabled:      b.ReminderEnabled,
+		ReminderIntervalDays: intervalDays,
+		ReminderTime:         reminderTime,
+		ReminderDayOfWeek:    reminderDOW,
 	}
 }
 
@@ -115,6 +142,10 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
+}
+
+func (h *ConfigHandler) Get(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]bool{"ntfy_enabled": h.NtfyEnabled})
 }
 
 func (h *BatchHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -214,15 +245,19 @@ func (h *BatchHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Batch struct {
-			Name          string  `json:"name"`
-			TeaType       string  `json:"tea_type"`
-			TeaG          float64 `json:"tea_g"`
-			SteepMin      float64 `json:"steep_min"`
-			SugarG        float64 `json:"sugar_g"`
-			TeaVolumeMl   float64 `json:"tea_volume_ml"`
-			ScobyVolumeMl float64 `json:"scoby_volume_ml"`
-			StartedAt     string  `json:"started_at"`
-			Stage         string  `json:"stage"`
+			Name                 string  `json:"name"`
+			TeaType              string  `json:"tea_type"`
+			TeaG                 float64 `json:"tea_g"`
+			SteepMin             float64 `json:"steep_min"`
+			SugarG               float64 `json:"sugar_g"`
+			TeaVolumeMl          float64 `json:"tea_volume_ml"`
+			ScobyVolumeMl        float64 `json:"scoby_volume_ml"`
+			StartedAt            string  `json:"started_at"`
+			Stage                string  `json:"stage"`
+			ReminderEnabled      bool    `json:"reminder_enabled"`
+			ReminderIntervalDays int     `json:"reminder_interval_days"`
+			ReminderTime         string  `json:"reminder_time"`
+			ReminderDayOfWeek    *int    `json:"reminder_day_of_week"`
 		} `json:"batch"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -236,17 +271,35 @@ func (h *BatchHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	intervalDays := req.Batch.ReminderIntervalDays
+	if intervalDays < 1 {
+		intervalDays = 1
+	}
+	reminderTime := req.Batch.ReminderTime
+	if reminderTime == "" {
+		reminderTime = "08:00"
+	}
+
+	var dow sql.NullInt64
+	if req.Batch.ReminderDayOfWeek != nil {
+		dow = sql.NullInt64{Int64: int64(*req.Batch.ReminderDayOfWeek), Valid: true}
+	}
+
 	b := models.Batch{
-		ID:            id,
-		Name:          req.Batch.Name,
-		TeaType:       req.Batch.TeaType,
-		TeaG:          req.Batch.TeaG,
-		SteepMin:      req.Batch.SteepMin,
-		SugarG:        req.Batch.SugarG,
-		TeaVolumeMl:   req.Batch.TeaVolumeMl,
-		ScobyVolumeMl: req.Batch.ScobyVolumeMl,
-		StartedAt:     req.Batch.StartedAt,
-		Stage:         req.Batch.Stage,
+		ID:                   id,
+		Name:                 req.Batch.Name,
+		TeaType:              req.Batch.TeaType,
+		TeaG:                 req.Batch.TeaG,
+		SteepMin:             req.Batch.SteepMin,
+		SugarG:               req.Batch.SugarG,
+		TeaVolumeMl:          req.Batch.TeaVolumeMl,
+		ScobyVolumeMl:        req.Batch.ScobyVolumeMl,
+		StartedAt:            req.Batch.StartedAt,
+		Stage:                req.Batch.Stage,
+		ReminderEnabled:      req.Batch.ReminderEnabled,
+		ReminderIntervalDays: intervalDays,
+		ReminderTime:         reminderTime,
+		ReminderDayOfWeek:    dow,
 	}
 	if err := models.UpdateBatch(h.DB, b); err != nil {
 		http.Error(w, "failed to update batch", http.StatusInternalServerError)
