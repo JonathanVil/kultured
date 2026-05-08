@@ -115,7 +115,7 @@
     }
 
     function startEditing() {
-        editingBatch = structuredClone(batch)
+        editingBatch = $state.snapshot(batch)
         editing = true
     }
 
@@ -234,8 +234,24 @@
                     <Input bind:value={editingBatch.name} />
                 </div>
                 <div class="space-y-1">
+                    <span class="text-muted-foreground">Stage</span>
+                    <select
+                        bind:value={editingBatch.stage}
+                        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                        <option value="f1">F1</option>
+                        <option value="f2">F2</option>
+                        <option value="bottled">Bottled</option>
+                        <option value="done">Done</option>
+                    </select>
+                </div>
+                <div class="space-y-1">
                     <span class="text-muted-foreground">Tea type</span>
                     <Input bind:value={editingBatch.tea_type} />
+                </div>
+                <div class="space-y-1">
+                    <span class="text-muted-foreground">Started</span>
+                    <Input type="date" bind:value={editingBatch.started_at} />
                 </div>
                 <div class="space-y-1">
                     <span class="text-muted-foreground">Tea (g)</span>
@@ -256,10 +272,6 @@
                 <div class="space-y-1">
                     <span class="text-muted-foreground">SCOBY volume (ml)</span>
                     <Input type="number" min="0" step="1" bind:value={editingBatch.scoby_volume_ml} />
-                </div>
-                <div class="space-y-1">
-                    <span class="text-muted-foreground">Started</span>
-                    <Input type="date" bind:value={editingBatch.started_at} />
                 </div>
             </Card.Content>
         </Card.Root>

@@ -22,14 +22,42 @@ type Batch struct {
 }
 
 func UpdateBatch(db *sql.DB, b Batch) error {
-	_, err := db.Exec(`
-		UPDATE batches
-		SET name = ?, tea_type = ?, tea_g = ?, steep_min = ?, sugar_g = ?,
-		    tea_volume_ml = ?, scoby_volume_ml = ?, started_at = ?
-		WHERE id = ?
-	`, b.Name, b.TeaType, b.TeaG, b.SteepMin, b.SugarG,
-		b.TeaVolumeMl, b.ScobyVolumeMl, b.StartedAt, b.ID)
-	return err
+	// When reverting stage, clear timestamps that belong to later stages.
+	// f1 → clear start_f2 and done_at
+	// f2 → clear done_at only (start_f2 kept or stays null)
+	// bottled/done → no timestamp clearing
+	switch b.Stage {
+	case "f1":
+		_, err := db.Exec(`
+			UPDATE batches
+			SET name=?, tea_type=?, tea_g=?, steep_min=?, sugar_g=?,
+			    tea_volume_ml=?, scoby_volume_ml=?, started_at=?,
+			    stage=?, start_f2=NULL, done_at=NULL
+			WHERE id=?
+		`, b.Name, b.TeaType, b.TeaG, b.SteepMin, b.SugarG,
+			b.TeaVolumeMl, b.ScobyVolumeMl, b.StartedAt, b.Stage, b.ID)
+		return err
+	case "f2":
+		_, err := db.Exec(`
+			UPDATE batches
+			SET name=?, tea_type=?, tea_g=?, steep_min=?, sugar_g=?,
+			    tea_volume_ml=?, scoby_volume_ml=?, started_at=?,
+			    stage=?, done_at=NULL
+			WHERE id=?
+		`, b.Name, b.TeaType, b.TeaG, b.SteepMin, b.SugarG,
+			b.TeaVolumeMl, b.ScobyVolumeMl, b.StartedAt, b.Stage, b.ID)
+		return err
+	default:
+		_, err := db.Exec(`
+			UPDATE batches
+			SET name=?, tea_type=?, tea_g=?, steep_min=?, sugar_g=?,
+			    tea_volume_ml=?, scoby_volume_ml=?, started_at=?,
+			    stage=?
+			WHERE id=?
+		`, b.Name, b.TeaType, b.TeaG, b.SteepMin, b.SugarG,
+			b.TeaVolumeMl, b.ScobyVolumeMl, b.StartedAt, b.Stage, b.ID)
+		return err
+	}
 }
 
 const batchColumns = ` id, name, started_at, tea_type, tea_g, steep_min, sugar_g,

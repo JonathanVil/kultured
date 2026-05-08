@@ -222,10 +222,17 @@ func (h *BatchHandler) Update(w http.ResponseWriter, r *http.Request) {
 			TeaVolumeMl   float64 `json:"tea_volume_ml"`
 			ScobyVolumeMl float64 `json:"scoby_volume_ml"`
 			StartedAt     string  `json:"started_at"`
+			Stage         string  `json:"stage"`
 		} `json:"batch"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	validStages := map[string]bool{"f1": true, "f2": true, "bottled": true, "done": true}
+	if !validStages[req.Batch.Stage] {
+		http.Error(w, "invalid stage", http.StatusBadRequest)
 		return
 	}
 
@@ -239,6 +246,7 @@ func (h *BatchHandler) Update(w http.ResponseWriter, r *http.Request) {
 		TeaVolumeMl:   req.Batch.TeaVolumeMl,
 		ScobyVolumeMl: req.Batch.ScobyVolumeMl,
 		StartedAt:     req.Batch.StartedAt,
+		Stage:         req.Batch.Stage,
 	}
 	if err := models.UpdateBatch(h.DB, b); err != nil {
 		http.Error(w, "failed to update batch", http.StatusInternalServerError)
